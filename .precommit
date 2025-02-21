@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/erskaggs/jira-pre-commit
+    rev: v1.0.4
+    hooks:
+      - id: jira-pre-commit
+        stages: [commit-msg]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+        stages: [pre-commit]
+      - id: end-of-file-fixer
+        stages: [pre-commit]
+      - id: trailing-whitespace
+        stages: [pre-commit]
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.92.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+        args:
+          - --tf-init-args=-backend=false
+      - id: terraform_docs
+        args:
+          - --hook-config=--path-to-file=README.md     
+          - --hook-config=--add-to-existing-file=true 
+          - --hook-config=--create-file-if-not-exist=true  
+          - --hook-config=--use-standard-markers=true
+      - id: terraform_checkov
