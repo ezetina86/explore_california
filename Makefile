@@ -1,5 +1,7 @@
 #!/usr/bin/env make
-.PHONY: run_website stop_website install_kind install_kubectl create_docker_registry create_kind_cluster
+.PHONY: run_website stop_website install_kind install_kubectl create_docker_registry create_kind_cluster \
+	connect_resgistry_to_kind_network connect_resgistry_to_kind create_kind_cluster_with_registry delete_kind_cluster \
+	delete_docker_registry
 
 run_website:
 	podman build --platform linux/arm64 -t explorecalifornia.com . && \
@@ -9,16 +11,10 @@ stop_website:
 	podman stop explorecalifornia.com
 
 install_kind:
-	curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-arm64 && \
-		chmod +x ./kind && \
-		mv ./kind /usr/local/bin/kind && \
-		kind --version
+	brew install kind || true;
 
 install_kubectl:
-	curl -Lo ./kubectl https://dl.k8s.io/release/v1.21.0/bin/linux/arm64/kubectl && \
-		chmod +x ./kubectl && \
-		mv ./kubectl /usr/local/bin/kubectl && \
-		kubectl version --client
+	brew install kubectl || true;
 
 create_docker_registry:
 	@if [ -z "$$(podman ps -aq --filter "name=local-registry")" ]; then \
@@ -34,5 +30,22 @@ create_docker_registry:
 	fi
 
 create_kind_cluster: install_kind install_kubectl create_docker_registry
-	kind create cluster --name explorecalifornia.com && \
+	kind create cluster --config ./kind_config.yaml --name explorecalifornia.com || true \
 		kubectl get nodes
+
+connect_resgistry_to_kind_network:
+	podman network connect kind local-registry || true;
+
+connect_resgistry_to_kind: connect_resgistry_to_kind_network
+	kubectl apply -f ./kind_configmap.yaml
+
+create_kind_cluster_with_registry:
+	$(MAKE) create_kind_cluster && \
+		$(MAKE) connect_resgistry_to_kind
+
+delete_docker_registry:
+	podman stop local-registry && \
+		podman rm local-registry
+
+delete_kind_cluster: delete_docker_registry
+	kind delete cluster --name explorecalifornia.com
