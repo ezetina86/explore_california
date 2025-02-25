@@ -3,7 +3,9 @@ apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5001"]
-    endpoint = ["http://local-registry:5001"]
+    endpoint = ["http://local-registry:5000"]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."local-registry:5000".tls]
+    insecure_skip_verify = true
 nodes:
 - role: control-plane
   kubeadmConfigPatches:
