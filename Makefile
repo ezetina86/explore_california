@@ -10,6 +10,8 @@ HOST_FILE := /etc/hosts
 WEBSITE_URL := explorecalifornia.com
 OLD_URL := eapi.opswatgears.com
 SUDO := sudo
+HELM_RELEASE_NAME := explore-california-website
+HELM_CHART_PATH := chart
 
 
 # Colors for output
@@ -21,10 +23,11 @@ NC := \033[0m # No Color
 
 # Phony targets
 .PHONY: all clean install build deploy help \
-        create_image stop_website install_kind install_kubectl \
+        create_image stop_website install_kind install_kubectl install_helm \
         create_docker_registry create_kind_cluster connect_registry_to_kind \
         create_kind_cluster_with_registry delete_kind_cluster delete_docker_registry \
-		deploy test_website update_hosts restore_hosts check_hosts check_deployment
+		deploy test_website update_hosts restore_hosts check_hosts check_deployment \
+		deploy_helm clean_helm
 
 # Default target
 all: deploy test_website
@@ -43,7 +46,7 @@ connect_registry_to_kind: connect_registry_to_kind_network
 create_kind_cluster_with_registry:
 	$(MAKE) create_kind_cluster && \
 		$(MAKE) connect_registry_to_kind
-install: install_kind install_kubectl
+install: install_kind install_kubectl install_helm
 
 install_kind:
 	@echo "$(BLUE)Installing Kind...$(NC)"
@@ -52,6 +55,10 @@ install_kind:
 install_kubectl:
 	@echo "$(BLUE)Installing kubectl...$(NC)"
 	@brew install kubectl || { echo "$(RED)Failed to install kubectl$(NC)"; exit 1; }
+
+install_helm:
+	@echo "$(BLUE)Installing Helm...$(NC)"
+	@brew install helm || { echo "$(RED)Failed to install Helm$(NC)"; exit 1; }
 
 # Registry management
 create_docker_registry:
@@ -112,16 +119,8 @@ create_kind_cluster_with_registry: create_image create_kind_cluster wait_for_clu
 
 # Deployment targets
 deploy: create_kind_cluster_with_registry
-	@echo "$(BLUE)Deploying application...$(NC)"
+	@echo "$(BLUE)Deploying application using Helm...$(NC)"
 	@kubectl get nodes
-	@echo "$(BLUE)Applying deployment...$(NC)"
-	@kubectl apply -f deployment.yaml || { echo "$(RED)Failed to apply deployment$(NC)"; exit 1; }
-	@echo "$(BLUE)Checking deployment status...$(NC)"
-	@kubectl get deployments
-	@echo "$(BLUE)Checking pods...$(NC)"
-	@kubectl get pods
-	@echo "$(BLUE)Applying service...$(NC)"
-	@kubectl apply -f service.yaml || { echo "$(RED)Failed to apply service$(NC)"; exit 1; }
 	@echo "$(BLUE)Deploying ingress controller...$(NC)"
 	@kubectl apply -f https://kind.sigs.k8s.io/examples/ingress/deploy-ingress-nginx.yaml || \
 		{ echo "$(RED)Failed to apply ingress controller$(NC)"; exit 1; }
@@ -130,11 +129,20 @@ deploy: create_kind_cluster_with_registry
 		--for=condition=ready pod \
 		--selector=app.kubernetes.io/component=controller \
 		--timeout=90s || { echo "$(RED)Ingress controller failed to start$(NC)"; exit 1; }
-	@kubectl apply -f ingress.yaml || { echo "$(RED)Failed to apply ingress$(NC)"; exit 1; }
+	@$(MAKE) deploy_helm
 	@$(MAKE) update_hosts
+
+deploy_helm:
+	@echo "$(BLUE)Deploying application with Helm...$(NC)"
+	@helm upgrade --atomic --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) \
+		--wait || { echo "$(RED)Failed to deploy with Helm$(NC)"; exit 1; }
+	@echo "$(GREEN)Helm deployment successful!$(NC)"
 
 check_deployment:
 	@echo "$(BLUE)Checking deployment status...$(NC)"
+	@echo "$(BLUE)Helm release status:$(NC)"
+	@helm list | grep $(HELM_RELEASE_NAME) || echo "$(YELLOW)No Helm release found$(NC)"
+	@echo "$(BLUE)Kubernetes resources:$(NC)"
 	@kubectl get nodes
 	@kubectl get deployments
 	@kubectl get pods
@@ -193,8 +201,14 @@ test_website:
 	exit 1
 
 # Cleanup
-clean: restore_hosts delete_kind_cluster
+clean: clean_helm restore_hosts delete_kind_cluster
 	@echo "$(GREEN)Cleanup complete!$(NC)"
+
+clean_helm:
+	@echo "$(BLUE)Cleaning up Helm release...$(NC)"
+	@helm list | grep -q $(HELM_RELEASE_NAME) && \
+		helm uninstall $(HELM_RELEASE_NAME) || \
+		echo "$(YELLOW)No Helm release found to clean up$(NC)"
 
 delete_docker_registry:
 	@echo "$(BLUE)Removing registry...$(NC)"
