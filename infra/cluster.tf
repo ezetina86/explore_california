@@ -13,10 +13,12 @@ module "vpc" {
   private_subnets = var.private_subnets
   public_subnets  = var.public_subnets
 
-  enable_nat_gateway   = true
-  enable_vpn_gateway   = true
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
+  enable_vpn_gateway     = false
+  enable_dns_support     = true
+  enable_dns_hostnames   = true
 
   public_subnet_tags = {
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
@@ -45,10 +47,16 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   cluster_endpoint_public_access = true
 
-  cluster_enabled_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  cluster_enabled_log_types = ["audit"]
 
   eks_managed_node_group_defaults = {
-    ami_type = "AL2_x86_64"
+    ami_type      = "AL2_x86_64"
+    capacity_type = "SPOT"
+
+    resources_limits = {
+      cpu    = "1"
+      memory = "2Gi"
+    }
 
     tags = {
       Environment = var.environment
@@ -77,7 +85,7 @@ module "eks" {
       }
 
       labels            = group.labels
-      enable_monitoring = true
+      enable_monitoring = false
 
       tags = {
         "k8s.io/cluster-autoscaler/enabled"             = "true"
@@ -87,16 +95,13 @@ module "eks" {
   }
 
   cluster_addons = {
-    aws-ebs-csi-driver = {
-      most_recent = true
-    }
-    coredns = {
+    vpc-cni = {
       most_recent = true
     }
     kube-proxy = {
       most_recent = true
     }
-    vpc-cni = {
+    coredns = {
       most_recent = true
     }
   }
@@ -142,4 +147,25 @@ resource "aws_ecr_repository" "explore_california" {
     Environment = var.environment
     Project     = var.project
   }
+}
+
+resource "aws_ecr_lifecycle_policy" "cleanup_policy" {
+  repository = aws_ecr_repository.explore_california.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 3 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 3
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 }
