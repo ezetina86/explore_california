@@ -1,6 +1,6 @@
-# values.yaml
+# values-aws.yaml
 appName: "explore-california-website"
-imageName: "localhost:5001/explorecalifornia.com"  # This will be overridden for AWS
+imageName: ""  # Will be set by Helm command
 webSiteUrl: "explorecalifornia.com"
 replicaCount: 1
 serviceName: "explorecalifornia-svc"

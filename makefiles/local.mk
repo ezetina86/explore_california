@@ -56,7 +56,7 @@ local-create-registry:
 # Image building
 local-create-image: local-create-registry
 	@echo "$(BLUE)Building and pushing image...$(NC)"
-	@podman build --platform $(PLATFORM) -t $(IMAGE_NAME) . && \
+	@podman build --platform $(PLATFORM_LOCAL) -t $(IMAGE_NAME) . && \
 		podman tag $(IMAGE_NAME) localhost:$(REGISTRY_PORT)/$(IMAGE_NAME) && \
 		podman push --tls-verify=false localhost:$(REGISTRY_PORT)/$(IMAGE_NAME) || \
 		{ echo "$(RED)Failed to build/push image$(NC)"; exit 1; }
@@ -94,6 +94,7 @@ local-create-cluster-with-registry: local-create-image local-create-cluster loca
 local-deploy-helm:
 	@echo "$(BLUE)Deploying application with Helm...$(NC)"
 	@helm upgrade --atomic --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) \
+		-f $(HELM_VALUES_LOCAL) \
 		--wait || { echo "$(RED)Failed to deploy with Helm$(NC)"; exit 1; }
 	@echo "$(GREEN)Helm deployment successful!$(NC)"
 
