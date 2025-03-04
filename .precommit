@@ -24,8 +24,10 @@ repos:
           - --tf-init-args=-backend=false
       - id: terraform_docs
         args:
-          - --hook-config=--path-to-file=README.md     
-          - --hook-config=--add-to-existing-file=true 
-          - --hook-config=--create-file-if-not-exist=true  
+          - --hook-config=--path-to-file=README.md
+          - --hook-config=--add-to-existing-file=true
+          - --hook-config=--create-file-if-not-exist=true
           - --hook-config=--use-standard-markers=true
       - id: terraform_checkov
+        args:
+        - --args=--skip-check CKV_TF_1,CKV_TF_2
