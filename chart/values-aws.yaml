@@ -1,0 +1,7 @@
+# values-aws.yaml
+appName: "explore-california-website"
+imageName: ""  # Will be set by Helm command
+webSiteUrl: "explorecalifornia.com"
+replicaCount: 1
+serviceName: "explorecalifornia-svc"
+sourcePort: 80

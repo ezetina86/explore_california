@@ -1,0 +1,7 @@
+# values.yaml
+appName: "explore-california-website"
+imageName: "localhost:5001/explorecalifornia.com"  # This will be overridden for AWS
+webSiteUrl: "explorecalifornia.com"
+replicaCount: 1
+serviceName: "explorecalifornia-svc"
+sourcePort: 80
